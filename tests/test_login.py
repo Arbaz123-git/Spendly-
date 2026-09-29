@@ -21,7 +21,7 @@ def test_valid_login_redirects_and_sets_session(client, user):
         "/login", data={"email": user["email"], "password": user["password"]}
     )
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/")
+    assert resp.headers["Location"].endswith("/profile")
 
     with client.session_transaction() as sess:
         assert sess["user_name"] == "Alice Rao"
@@ -104,11 +104,11 @@ def test_logged_in_user_redirected_away_from_login_and_register(client, user):
 
     resp = client.get("/login")
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/")
+    assert resp.headers["Location"].endswith("/profile")
 
     resp = client.get("/register")
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/")
+    assert resp.headers["Location"].endswith("/profile")
 
 
 def test_password_stored_as_salted_hash_not_plaintext(client, user):
