@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Your Profile — Spendly{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<section class="profile-page">
+    <div class="profile-inner">
+        <h1 class="profile-title">Your Profile</h1>
+
+        <div class="profile-card">
+            <div class="profile-avatar" aria-hidden="true">{{ user.name[0]|upper }}</div>
+            <div class="profile-card-info">
+                <h2 class="profile-name">{{ user.name }}</h2>
+                <p class="profile-email">{{ user.email }}</p>
+                <p class="profile-member-since">Member since {{ user.member_since }}</p>
+            </div>
+        </div>
+
+        <div class="mock-stats profile-stats">
+            {% for stat in stats %}
+            <div class="mock-stat">
+                <span class="mock-stat-label">{{ stat.label }}</span>
+                <span class="mock-stat-value">{{ stat.value }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="profile-section">
+            <h2 class="profile-section-title">Transaction History</h2>
+            <div class="profile-table-wrap">
+                <table class="profile-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th class="profile-th-amount">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions %}
+                        <tr>
+                            <td data-label="Date">{{ tx.date }}</td>
+                            <td data-label="Description">{{ tx.description }}</td>
+                            <td data-label="Category">
+                                <span class="profile-badge profile-cat-{{ tx.category|lower }}">{{ tx.category }}</span>
+                            </td>
+                            <td data-label="Amount" class="profile-td-amount">{{ tx.amount }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="profile-section">
+            <h2 class="profile-section-title">Category Breakdown</h2>
+            <div class="mock-progress-card">
+                {% for cat in categories %}
+                <div class="mock-progress-row profile-progress-row">
+                    <span class="mock-progress-label">{{ cat.name }}</span>
+                    <div class="mock-progress-track">
+                        <div class="mock-progress-bar profile-cat-bar-{{ cat.name|lower }}" style="width: {{ cat.percent }}%"></div>
+                    </div>
+                    <span class="profile-progress-amount">{{ cat.amount }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
