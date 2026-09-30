@@ -131,22 +131,36 @@ def seed_db():
         conn.close()
 
 
-def get_summary_stats(user_id):
+def _date_filter_clause(user_id, start_date, end_date):
+    """Build a WHERE clause scoped to user_id, plus an inclusive date range
+    when both start_date and end_date are given. A single bound with no
+    matching counterpart is treated as no date filter at all."""
+    clause = "user_id = ?"
+    params = [user_id]
+    if start_date and end_date:
+        clause += " AND date >= ? AND date <= ?"
+        params += [start_date, end_date]
+    return clause, params
+
+
+def get_summary_stats(user_id, start_date=None, end_date=None):
     conn = get_db()
     try:
+        where, params = _date_filter_clause(user_id, start_date, end_date)
+
         totals = conn.execute(
             "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count "
-            "FROM expenses WHERE user_id = ?",
-            (user_id,),
+            "FROM expenses WHERE " + where,
+            params,
         ).fetchone()
 
         top = conn.execute(
             "SELECT category, SUM(amount) AS cat_total "
-            "FROM expenses WHERE user_id = ? "
+            "FROM expenses WHERE " + where + " "
             "GROUP BY category "
             "ORDER BY cat_total DESC, category ASC "
             "LIMIT 1",
-            (user_id,),
+            params,
         ).fetchone()
 
         return {
@@ -158,28 +172,30 @@ def get_summary_stats(user_id):
         conn.close()
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, start_date=None, end_date=None):
     conn = get_db()
     try:
+        where, params = _date_filter_clause(user_id, start_date, end_date)
         return conn.execute(
             "SELECT category, SUM(amount) AS total "
-            "FROM expenses WHERE user_id = ? "
+            "FROM expenses WHERE " + where + " "
             "GROUP BY category "
             "ORDER BY total DESC, category ASC",
-            (user_id,),
+            params,
         ).fetchall()
     finally:
         conn.close()
 
 
-def get_transactions_for_user(user_id):
+def get_transactions_for_user(user_id, start_date=None, end_date=None):
     conn = get_db()
     try:
+        where, params = _date_filter_clause(user_id, start_date, end_date)
         return conn.execute(
             "SELECT date, description, category, amount "
-            "FROM expenses WHERE user_id = ? "
+            "FROM expenses WHERE " + where + " "
             "ORDER BY date DESC, id DESC",
-            (user_id,),
+            params,
         ).fetchall()
     finally:
         conn.close()

@@ -66,6 +66,29 @@ def _format_stats(summary):
     ]
 
 
+def _parse_date_range(args):
+    """Validate start_date/end_date query params (YYYY-MM-DD).
+    Returns (start_date, end_date) as strings when both are present, valid,
+    and start_date <= end_date; otherwise (None, None) — no date filter."""
+    start_raw = args.get("start_date", "").strip()
+    end_raw = args.get("end_date", "").strip()
+    if not start_raw and not end_raw:
+        return None, None
+    if not start_raw or not end_raw:
+        flash("Please provide both a start and end date to filter.", "filter-error")
+        return None, None
+    try:
+        start_dt = datetime.strptime(start_raw, "%Y-%m-%d")
+        end_dt = datetime.strptime(end_raw, "%Y-%m-%d")
+    except ValueError:
+        flash("That date range wasn't valid — showing all-time data instead.", "filter-error")
+        return None, None
+    if start_dt > end_dt:
+        flash("Start date must be before end date — showing all-time data instead.", "filter-error")
+        return None, None
+    return start_raw, end_raw
+
+
 def _compute_percentages(amounts):
     total = sum(amounts)
     if total <= 0:
@@ -179,6 +202,7 @@ def profile():
 
     user_id = session["user_id"]
     db_user = get_user_by_id(user_id)
+    start_date, end_date = _parse_date_range(request.args)
 
     user = {
         "name": db_user["name"],
@@ -186,9 +210,13 @@ def profile():
         "member_since": _format_member_since(db_user["created_at"]),
     }
 
-    stats = _format_stats(get_summary_stats(user_id))
-    transactions = _format_transactions(get_transactions_for_user(user_id))
-    categories = _format_categories(get_category_breakdown(user_id))
+    stats = _format_stats(get_summary_stats(user_id, start_date, end_date))
+    transactions = _format_transactions(
+        get_transactions_for_user(user_id, start_date, end_date)
+    )
+    categories = _format_categories(
+        get_category_breakdown(user_id, start_date, end_date)
+    )
 
     return render_template(
         "profile.html",
@@ -196,6 +224,7 @@ def profile():
         stats=stats,
         transactions=transactions,
         categories=categories,
+        filters={"start_date": start_date or "", "end_date": end_date or ""},
     )
 
 

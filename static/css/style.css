@@ -564,6 +564,10 @@ a { color: inherit; text-decoration: none; }
 
 .form-input::placeholder { color: var(--ink-faint); }
 
+.form-input[type="date"] {
+    color-scheme: light;
+}
+
 .btn-submit {
     width: 100%;
     padding: 0.7rem;
