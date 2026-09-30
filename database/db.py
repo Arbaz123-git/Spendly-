@@ -75,6 +75,16 @@ def get_user_by_email(email):
         conn.close()
 
 
+def get_user_by_id(user_id):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT * FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
 def _sample_expenses():
     today = date.today()
     first_of_month = today.replace(day=1)
@@ -117,5 +127,59 @@ def seed_db():
             )
 
         conn.commit()
+    finally:
+        conn.close()
+
+
+def get_summary_stats(user_id):
+    conn = get_db()
+    try:
+        totals = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count "
+            "FROM expenses WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+
+        top = conn.execute(
+            "SELECT category, SUM(amount) AS cat_total "
+            "FROM expenses WHERE user_id = ? "
+            "GROUP BY category "
+            "ORDER BY cat_total DESC, category ASC "
+            "LIMIT 1",
+            (user_id,),
+        ).fetchone()
+
+        return {
+            "total": totals["total"],
+            "count": totals["count"],
+            "top_category": top["category"] if top else None,
+        }
+    finally:
+        conn.close()
+
+
+def get_category_breakdown(user_id):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT category, SUM(amount) AS total "
+            "FROM expenses WHERE user_id = ? "
+            "GROUP BY category "
+            "ORDER BY total DESC, category ASC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def get_transactions_for_user(user_id):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT date, description, category, amount "
+            "FROM expenses WHERE user_id = ? "
+            "ORDER BY date DESC, id DESC",
+            (user_id,),
+        ).fetchall()
     finally:
         conn.close()
