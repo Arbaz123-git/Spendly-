@@ -1,9 +1,13 @@
 import os
+from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import check_password_hash
 
-from database.db import get_db, init_db, seed_db, create_user, get_user_by_email
+from database.db import (
+    get_db, init_db, seed_db, create_user, get_user_by_email, get_user_by_id,
+    get_transactions_for_user, get_summary_stats, get_category_breakdown,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -21,6 +25,75 @@ def validate_registration(name, email, password):
     if len(password) < 8:
         return "Password must be at least 8 characters."
     return None
+
+
+# ------------------------------------------------------------------ #
+# Profile formatting helpers                                          #
+# ------------------------------------------------------------------ #
+
+def _format_currency(amount):
+    return f"₹{amount:,.0f}"
+
+
+def _format_date(iso_date):
+    dt = datetime.strptime(iso_date, "%Y-%m-%d")
+    return f"{dt.day} {dt.strftime('%b %Y')}"
+
+
+def _format_member_since(created_at):
+    dt = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+    return f"{dt.day} {dt.strftime('%b %Y')}"
+
+
+def _format_transactions(rows):
+    return [
+        {
+            "date": _format_date(row["date"]),
+            "description": row["description"],
+            "category": row["category"],
+            "amount": _format_currency(row["amount"]),
+        }
+        for row in rows
+    ]
+
+
+def _format_stats(summary):
+    top_category = summary["top_category"] or "—"
+    return [
+        {"label": "Total spent", "value": _format_currency(summary["total"])},
+        {"label": "Transactions", "value": str(summary["count"])},
+        {"label": "Top category", "value": top_category},
+    ]
+
+
+def _compute_percentages(amounts):
+    total = sum(amounts)
+    if total <= 0:
+        return [0] * len(amounts)
+
+    raw = [amt / total * 100 for amt in amounts]
+    floored = [int(r) for r in raw]
+    remainder = 100 - sum(floored)
+
+    if floored:
+        floored[0] += remainder
+
+    return floored
+
+
+def _format_categories(rows):
+    if not rows:
+        return []
+    amounts = [row["total"] for row in rows]
+    percentages = _compute_percentages(amounts)
+    return [
+        {
+            "name": row["category"],
+            "amount": _format_currency(row["total"]),
+            "percent": pct,
+        }
+        for row, pct in zip(rows, percentages)
+    ]
 
 
 # ------------------------------------------------------------------ #
@@ -96,7 +169,7 @@ def logout():
 
 
 # ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
+# Profile route                                                       #
 # ------------------------------------------------------------------ #
 
 @app.route("/profile")
@@ -104,38 +177,18 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
+    user_id = session["user_id"]
+    db_user = get_user_by_id(user_id)
+
     user = {
-        "name": session.get("user_name", "Demo User"),
-        "email": "demo@spendly.com",
-        "member_since": "12 Jan 2026",
+        "name": db_user["name"],
+        "email": db_user["email"],
+        "member_since": _format_member_since(db_user["created_at"]),
     }
 
-    stats = [
-        {"label": "Total spent", "value": "₹5,870"},
-        {"label": "Transactions", "value": "8"},
-        {"label": "Top category", "value": "Shopping"},
-    ]
-
-    transactions = [
-        {"date": "25 Sep 2026", "description": "Dinner with friends", "category": "Food", "amount": "₹800"},
-        {"date": "21 Sep 2026", "description": "Miscellaneous expense", "category": "Other", "amount": "₹120"},
-        {"date": "17 Sep 2026", "description": "New pair of shoes", "category": "Shopping", "amount": "₹2,200"},
-        {"date": "13 Sep 2026", "description": "Movie tickets", "category": "Entertainment", "amount": "₹350"},
-        {"date": "10 Sep 2026", "description": "Pharmacy purchase", "category": "Health", "amount": "₹600"},
-        {"date": "7 Sep 2026", "description": "Electricity bill", "category": "Bills", "amount": "₹1,200"},
-        {"date": "4 Sep 2026", "description": "Auto rickshaw fare", "category": "Transport", "amount": "₹150"},
-        {"date": "1 Sep 2026", "description": "Weekly groceries", "category": "Food", "amount": "₹450"},
-    ]
-
-    categories = [
-        {"name": "Shopping", "amount": "₹2,200", "percent": 37},
-        {"name": "Bills", "amount": "₹1,200", "percent": 20},
-        {"name": "Food", "amount": "₹1,250", "percent": 21},
-        {"name": "Health", "amount": "₹600", "percent": 10},
-        {"name": "Entertainment", "amount": "₹350", "percent": 6},
-        {"name": "Transport", "amount": "₹150", "percent": 3},
-        {"name": "Other", "amount": "₹120", "percent": 2},
-    ]
+    stats = _format_stats(get_summary_stats(user_id))
+    transactions = _format_transactions(get_transactions_for_user(user_id))
+    categories = _format_categories(get_category_breakdown(user_id))
 
     return render_template(
         "profile.html",
