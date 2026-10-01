@@ -66,6 +66,7 @@
                             <th>Description</th>
                             <th>Category</th>
                             <th class="profile-th-amount">Amount</th>
+                            <th class="profile-th-actions">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -77,10 +78,13 @@
                                 <span class="profile-badge profile-cat-{{ tx.category|lower }}">{{ tx.category }}</span>
                             </td>
                             <td data-label="Amount" class="profile-td-amount">{{ tx.amount }}</td>
+                            <td data-label="Actions" class="profile-td-actions">
+                                <a href="{{ url_for('edit_expense', id=tx.id) }}" class="profile-edit-link">Edit</a>
+                            </td>
                         </tr>
                         {% else %}
                         <tr class="profile-empty-row">
-                            <td class="profile-empty-state" colspan="4">
+                            <td class="profile-empty-state" colspan="5">
                                 No transactions found for the selected date range.
                             </td>
                         </tr>

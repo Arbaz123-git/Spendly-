@@ -1,13 +1,13 @@
 import os
 from datetime import date, datetime
 
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
 from werkzeug.security import check_password_hash
 
 from database.db import (
     get_db, init_db, seed_db, create_user, get_user_by_email, get_user_by_id,
     get_transactions_for_user, get_summary_stats, get_category_breakdown,
-    create_expense,
+    create_expense, get_expense_by_id, update_expense,
 )
 
 VALID_EXPENSE_CATEGORIES = (
@@ -69,6 +69,7 @@ def _format_member_since(created_at):
 def _format_transactions(rows):
     return [
         {
+            "id": row["id"],
             "date": _format_date(row["date"]),
             "description": row["description"],
             "category": row["category"],
@@ -285,9 +286,37 @@ def add_expense():
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    expense = get_expense_by_id(id, session["user_id"])
+    if expense is None:
+        abort(404)
+
+    if request.method == "GET":
+        return render_template(
+            "edit_expense.html", expense=expense,
+            categories=VALID_EXPENSE_CATEGORIES,
+        )
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip() or None
+
+    error = validate_expense(amount_raw, category, date_raw)
+    if error:
+        return render_template(
+            "edit_expense.html", error=error, expense=expense,
+            amount=amount_raw, category=category, date=date_raw,
+            description=description or "", categories=VALID_EXPENSE_CATEGORIES,
+        )
+
+    update_expense(id, session["user_id"], float(amount_raw), category, date_raw, description)
+    flash("Expense updated.", "success")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/delete")
