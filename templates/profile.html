@@ -54,7 +54,10 @@
         </form>
 
         <div class="profile-section">
-            <h2 class="profile-section-title">Transaction History</h2>
+            <div class="profile-section-header">
+                <h2 class="profile-section-title">Transaction History</h2>
+                <a class="btn-primary" href="{{ url_for('add_expense') }}">Add Expense</a>
+            </div>
             <div class="profile-table-wrap">
                 <table class="profile-table">
                     <thead>

@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import check_password_hash
@@ -7,6 +7,11 @@ from werkzeug.security import check_password_hash
 from database.db import (
     get_db, init_db, seed_db, create_user, get_user_by_email, get_user_by_id,
     get_transactions_for_user, get_summary_stats, get_category_breakdown,
+    create_expense,
+)
+
+VALID_EXPENSE_CATEGORIES = (
+    "Food", "Transport", "Bills", "Health", "Entertainment", "Shopping", "Other",
 )
 
 app = Flask(__name__)
@@ -24,6 +29,22 @@ def validate_registration(name, email, password):
         return "Please enter a valid email address."
     if len(password) < 8:
         return "Password must be at least 8 characters."
+    return None
+
+
+def validate_expense(amount_raw, category, date_raw):
+    try:
+        amount = float(amount_raw)
+    except ValueError:
+        return "Please enter a valid amount."
+    if amount <= 0:
+        return "Amount must be greater than zero."
+    if category not in VALID_EXPENSE_CATEGORIES:
+        return "Please choose a valid category."
+    try:
+        datetime.strptime(date_raw, "%Y-%m-%d")
+    except ValueError:
+        return "Please enter a valid date."
     return None
 
 
@@ -235,9 +256,33 @@ def analytics():
     return render_template("analytics.html")
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
-    return "Add expense — coming in Step 7"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html", today=date.today().isoformat(),
+            categories=VALID_EXPENSE_CATEGORIES,
+        )
+
+    amount_raw = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_raw = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip() or None
+
+    error = validate_expense(amount_raw, category, date_raw)
+    if error:
+        return render_template(
+            "add_expense.html", error=error, today=date.today().isoformat(),
+            amount=amount_raw, category=category, date=date_raw,
+            description=description or "", categories=VALID_EXPENSE_CATEGORIES,
+        )
+
+    create_expense(session["user_id"], float(amount_raw), category, date_raw, description)
+    flash("Expense added.", "success")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit")
