@@ -1,0 +1,27 @@
+/* ------------------------------------------------------------------ */
+/* Add expense page — page-scoped layout                               */
+/* ------------------------------------------------------------------ */
+
+.add-expense-section {
+    min-height: calc(100vh - 60px - 100px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+}
+
+.add-expense-container {
+    width: 100%;
+    max-width: var(--auth-width);
+}
+
+.add-expense-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.add-expense-actions .btn-primary,
+.add-expense-actions .btn-ghost {
+    flex: 1;
+    text-align: center;
+}
