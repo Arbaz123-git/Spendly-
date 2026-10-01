@@ -206,10 +206,35 @@ def get_transactions_for_user(user_id, start_date=None, end_date=None):
     try:
         where, params = _date_filter_clause(user_id, start_date, end_date)
         return conn.execute(
-            "SELECT date, description, category, amount "
+            "SELECT id, date, description, category, amount "
             "FROM expenses WHERE " + where + " "
             "ORDER BY date DESC, id DESC",
             params,
         ).fetchall()
+    finally:
+        conn.close()
+
+
+def get_expense_by_id(expense_id, user_id):
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT id, user_id, amount, category, date, description "
+            "FROM expenses WHERE id = ? AND user_id = ?",
+            (expense_id, user_id),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def update_expense(expense_id, user_id, amount, category, date, description):
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE expenses SET amount = ?, category = ?, date = ?, description = ? "
+            "WHERE id = ? AND user_id = ?",
+            (amount, category, date, description, expense_id, user_id),
+        )
+        conn.commit()
     finally:
         conn.close()
