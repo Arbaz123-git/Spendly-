@@ -8,6 +8,7 @@ from database.db import (
     get_db, init_db, seed_db, create_user, get_user_by_email, get_user_by_id,
     get_transactions_for_user, get_summary_stats, get_category_breakdown,
     create_expense, get_expense_by_id, update_expense,
+    delete_expense as delete_expense_row,
 )
 
 VALID_EXPENSE_CATEGORIES = (
@@ -319,9 +320,18 @@ def edit_expense(id):
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/delete")
+@app.route("/expenses/<int:id>/delete", methods=["POST"])
 def delete_expense(id):
-    return "Delete expense — coming in Step 9"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    expense = get_expense_by_id(id, session["user_id"])
+    if expense is None:
+        abort(404)
+
+    delete_expense_row(id, session["user_id"])
+    flash("Expense deleted.", "success")
+    return redirect(url_for("profile"))
 
 
 # ------------------------------------------------------------------ #
